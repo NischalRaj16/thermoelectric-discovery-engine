@@ -27,9 +27,9 @@ digraph D1 {
     label="STAGE 2 · FEATURISATION"; fontsize=13; fontcolor="#F59E0B";
     style="rounded"; color="#334155"; penwidth=1.6;
     f1 [label="feature2.construct_feature()\n→ 62 DFT descriptors\nN_v · m*_d · m*_I · E_g"];
-    f2 [label="ANISOTROPY BLOCK\ndirection_val · is_b_axis\nis_c_axis · is_single_crystal",
+    f2 [label="ANISOTROPY BLOCK\ndirection_val · is_single_crystal\nis_a_axis · is_b_axis · is_c_axis",
         fillcolor="#052e16", color="#10B981", fontcolor="#6EE7B7"];
-    f3 [label="SAFEGUARD\nm* bounded to [0.02, 50.0]",
+    f3 [label="SAFEGUARD\nm*_CBM ∈ [0.02, 50.0]\nm*_VBM ∈ [−50.0, −0.02]",
         fillcolor="#422006", color="#F59E0B", fontcolor="#FCD34D"];
     {rank=same; f1; f2; f3;}
   }

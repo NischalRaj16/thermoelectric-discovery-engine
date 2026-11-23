@@ -329,11 +329,12 @@ def build_report():
         ("Multi-Valley Featurization Engine (feature2.py): ", 
          "Computes physics-grounded transport descriptors including valley degeneracy (Nv), inertial effective mass, density-of-states mass (md*), "
          "acoustic deformation potentials, and lattice anharmonicity metrics across varying chemical substitutions."),
-        ("Stage 1 - Base Machine Learning Ensemble: ", 
-         "A 5-fold ensemble combining ExtraTreesRegressor, GradientBoostingRegressor, and RandomForestRegressor trained on Boltzmann transport "
-         "simulations to estimate theoretical uncorrected properties: Seebeck coefficient S_raw, electrical conductivity σ_raw, and thermal conductivity κ_raw."),
+        ("Stage 1 - Frozen Base Ensemble: ", 
+         "Fifteen frozen XGBoost boosters - three transport targets x five folds - loaded from disk and never retrained by the correction layer, "
+         "estimating the uncorrected first-principles properties: Seebeck coefficient S_raw, electrical conductivity σ_raw, and thermal conductivity κ_raw."),
         ("Stage 2 - Empirical Transfer Learning Correction (transfer_learning.py): ", 
-         "Four Ridge regression correction models trained on 907 experimental data points to bridge the gap between ideal DFT calculations and "
+         "Four gradient-boosted residual correction models - multiplicative in log space for σ, κ and ZT, additive for the Seebeck coefficient - "
+         "trained on 907 experimental data points to bridge the gap between ideal DFT calculations and "
          "experimental realities (point defects, grain boundaries, bipolar conduction, umklapp phonon-phonon scattering, and structural phase transitions)."),
         ("Anisotropic Directional Dispatcher (run_pipeline.py): ", 
          "Encodes crystallographic orientation (single crystal b-axis [direction=2], c-axis [direction=3], a-axis [direction=1], and polycrystal [direction=0]) "
@@ -527,7 +528,7 @@ def build_report():
         ("Physical Concentration Capping: ", "In composition.py, host-anion substitutions are now strictly capped at min(x, 0.03125). Pure compounds now cleanly utilize pure base DFT ground-state values with zero unphysical multiplier distortion."),
         ("Physical Effective Mass Bounding: ", "In feature2.py, effective masses are bounded within physically realistic semiconductors limits: m*CBM ∈ [0.02, 50.0] and m*VBM ∈ [-50.0, -0.02]."),
         ("Directional Transport Encoding: ", "Engineered 5 dedicated anisotropic features: direction_val (0=poly, 1=a, 2=b, 3=c), is_single_crystal, is_b_axis, is_c_axis, and is_a_axis."),
-        ("Curated Experimental Dataset Ingestion: ", "Integrated Zhao et al. (Nature 2014) single-crystal b-axis benchmark data directly into evaluate_uploaded_datasets.py alongside ESTM and UCSB datasets, training four calibrated Ridge correction models across 907 experimental points.")
+        ("Curated Experimental Dataset Ingestion: ", "Integrated Zhao et al. (Nature 2014) single-crystal b-axis benchmark data directly into evaluate_uploaded_datasets.py alongside ESTM and UCSB datasets, training four calibrated gradient-boosted residual correction models across 907 experimental points.")
     ]
 
     for title, desc in fixes:
@@ -540,9 +541,10 @@ def build_report():
 
     add_callout(
         doc,
-        "Retraining the transfer learning model with directional features yielded outstanding cross-validation metrics across 907 points: "
-        "Seebeck Coefficient R² = 0.840 (MAE = 31.8 μV/K), Thermal Conductivity R² = 0.758 (MAE = 0.284 W/(m·K)), "
-        "ZT R² = 0.733 (MAE = 0.134), and Median Consistency Ratio = 0.966.",
+        "Retraining the transfer learning layer with directional features yielded the following out-of-fold metrics, scored with GroupKFold "
+        "partitioned on formula so that no composition appears in both sides of a fold: Seebeck R² = 0.840 (MAE = 38.65 μV/K, n = 907), "
+        "Thermal Conductivity R² = 0.758 (MAE = 0.4401 W/(m·K), n = 898), Electrical Conductivity R² = 0.269 (MAE = 757.6 S/cm, n = 907), "
+        "ZT R² = 0.733 (MAE = 0.1170, n = 898), and Median Consistency Ratio = 0.966.",
         bold_prefix="Model Calibration Validation:"
     )
 
@@ -822,7 +824,7 @@ def build_report():
     cli_commands = [
         ("1. Retrain Transfer Learning Models:",
          "python transfer_learning.py\n"
-         "Executes 5-fold cross-validation on 907 experimental points, computes R² metrics for Seebeck, electrical conductivity, "
+         "Executes GroupKFold cross-validation partitioned on formula across 907 experimental points, computes out-of-fold R² and MAE for Seebeck, electrical conductivity, "
          "thermal conductivity, and ZT, and saves the calibrated models to models_transfer_learning/."),
         ("2. Predict Pure SnSe Single Crystal (b-axis):",
          "python run_pipeline.py --formula SnSe --direction 2\n"

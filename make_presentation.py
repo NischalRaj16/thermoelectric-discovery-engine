@@ -510,7 +510,7 @@ blocks = [
      "• is_single_crystal\n"
      "• is_b_axis   — the high-ZT transport direction\n"
      "• is_c_axis\n"
-     "• anisotropy_strength"),
+     "• is_a_axis"),
 ]
 for idx, (title, colr, body) in enumerate(blocks):
     add_titled_card(s, Inches(0.8 + idx * 3.98), CONTENT_TOP, Inches(3.78),
@@ -556,8 +556,8 @@ add_titled_card(s, MARGIN_X, Inches(4.00), Inches(3.78), Inches(1.45),
                 title_color=RGBColor(251, 146, 60), body_size=10, title_size=12)
 add_titled_card(s, Inches(4.78), Inches(4.00), Inches(3.78), Inches(1.45),
                 "Physical bounding",
-                "Effective masses are clamped to [0.02, 50.0] and κ to a positive "
-                "floor, so no unphysical intermediate can propagate into ZT.",
+                "m*_CBM is clamped to [0.02, 50.0], m*_VBM to [−50.0, −0.02] and κ "
+                "to a positive floor, so nothing unphysical reaches ZT.",
                 title_color=ACCENT_GOLD, body_size=10, title_size=12)
 add_titled_card(s, Inches(8.76), Inches(4.00), Inches(3.77), Inches(1.45),
                 "Frozen by design",
@@ -717,8 +717,8 @@ issues = [
      "feature2.py applied no physical sanity check, so the mass tensor could take "
      "values with no semiconductor meaning and propagate into every downstream "
      "transport coefficient.",
-     "Fix: m*_CBM and m*_VBM bounded to [0.02, 50.0], with κ held above a positive "
-     "floor before ZT is formed."),
+     "Fix: m*_CBM bounded to [0.02, 50.0] and m*_VBM to [−50.0, −0.02], with κ "
+     "held above a positive floor before ZT is formed."),
     ("Root cause 3 — Orientation conflation",
      "SnSe and SnS are strongly anisotropic layered orthorhombics. Single-crystal "
      "b-axis and polycrystalline transport were being treated as the same measurement.",

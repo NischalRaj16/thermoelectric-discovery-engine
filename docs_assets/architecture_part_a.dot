@@ -29,9 +29,9 @@ digraph PARTA {
     label="STAGE 2  —  DUAL-PATH FEATURISATION"; fontsize=14;
     fontcolor="#1F4E79"; style="filled,rounded"; fillcolor="#F5F8FB"; color="#1F4E79"; penwidth=1.8;
     f3 [label="to_base_row(p, T, direction) → BASE_ROW_COLUMNS\n↓\nfeature2.construct_feature()\n+ cut_feature(COLUMN, SUBSET)\n→ 62 physics-grounded descriptors:\nvalley degeneracy N_v · inertial mass m*_I\nDOS mass m*_d · band gap E_g · valley offsets\n\nREFERENCE DATA (read-only):\nResults_Summary_Final.xlsx — DFT multi-valley\nmasses and E_g for 84 elements\nmendeleev.csv — elemental descriptors"];
-    f4 [label="SAFEGUARD — effective-mass bounding\nm*_CBM ∈ [0.02, 50.0]   m*_VBM ∈ [0.02, 50.0]",
+    f4 [label="SAFEGUARD — effective-mass bounding\nm*_CBM ∈ [0.02, 50.0]   m*_VBM ∈ [−50.0, −0.02]",
         fillcolor="#FFF2CC", color="#BF8F00"];
-    f2 [label="to_tl_features(p, direction)\nANISOTROPY BLOCK:\ndirection_val, is_single_crystal,\nis_b_axis, is_c_axis, anisotropy_strength",
+    f2 [label="to_tl_features(p, direction)\nANISOTROPY BLOCK:\ndirection_val, is_single_crystal,\nis_b_axis, is_c_axis, is_a_axis",
         fillcolor="#E2EFDA", color="#375623"];
     f3 -> f4;
   }
