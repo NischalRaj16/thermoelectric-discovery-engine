@@ -1,0 +1,72 @@
+cff-version: 1.2.0
+title: >-
+  Thermoelectric Discovery Engine: a physics-informed transfer-learning
+  calibration layer for SnSe/SnS thermoelectric transport prediction
+message: >-
+  If you use this software, or the calibrated models it ships, please cite it
+  using the metadata below. Please also cite the upstream KRICT work listed
+  under "references", which this software is derived from.
+type: software
+authors:
+  - family-names: Sadashivaiah
+    given-names: Nischal
+    affiliation: >-
+      College of Intelligent Computing, Chang Gung University, Taoyuan, Taiwan
+repository-code: 'https://github.com/NischalRaj16/thermoelectric-discovery-engine'
+abstract: >-
+  An end-to-end framework for predicting, screening and calibrating the
+  thermoelectric figure of merit ZT of SnSe- and SnS-based chalcogenides from
+  100 to 1000 K. A frozen ensemble of gradient-boosted models supplies a
+  first-principles transport prior from multi-valley DFT descriptors; four
+  residual correction models, validated out-of-fold with GroupKFold
+  partitioned on formula, map that prior onto measured experimental transport.
+  The engine adds explicit crystallographic-direction encoding for the
+  anisotropic Pnma/Cmcm lattice, physical bounding of the effective-mass
+  tensor, a self-consistency audit against ZT = S^2 sigma T / kappa, a
+  domain-validity guard that flags extrapolation, and Materials Project convex
+  hull screening for synthesisability.
+keywords:
+  - thermoelectrics
+  - machine learning
+  - transfer learning
+  - SnSe
+  - SnS
+  - figure of merit
+  - materials informatics
+  - density functional theory
+  - XGBoost
+license: Apache-2.0
+version: 1.0.0
+date-released: '2026-11-24'
+references:
+  - type: article
+    title: Data-Driven Enhancement of ZT in SnSe-Based Thermoelectric Systems
+    authors:
+      - family-names: Lee
+        given-names: Yea-Lee
+      - family-names: Lee
+        given-names: Hyungseok
+      - family-names: Kim
+        given-names: Taeshik
+      - family-names: Byun
+        given-names: Sejin
+      - family-names: Lee
+        given-names: Yong Kyu
+      - family-names: Jang
+        given-names: Seunghun
+      - family-names: Chung
+        given-names: In
+      - family-names: Chang
+        given-names: Hyunju
+      - family-names: Im
+        given-names: Jino
+    journal: Journal of the American Chemical Society
+    year: 2022
+    volume: 144
+    issue: 30
+    start: 13748
+    end: 13763
+    doi: 10.1021/jacs.2c04741
+    notes: >-
+      Upstream work. The base feature construction, the DFT descriptor tables
+      and the pre-trained transport models in this repository originate here.

@@ -1,0 +1,59 @@
+digraph PARTA {
+  graph [fontname="Helvetica", bgcolor="white", rankdir=TB, splines=spline,
+         nodesep=0.22, ranksep=0.34, compound=true, pad=0.12];
+  node  [fontname="Helvetica", shape=box, style="filled,rounded", penwidth=1.4,
+         fontsize=13, margin="0.13,0.075", color="#1F4E79", fillcolor="#FFFFFF", fontcolor="#1A1A1A"];
+  edge  [fontname="Helvetica", fontsize=11, color="#44546A", arrowsize=0.8,
+         penwidth=1.5, fontcolor="#1F4E79"];
+
+  subgraph cluster_entry {
+    label="STAGE 0  —  USER ENTRY POINTS"; fontsize=14; fontcolor="#1F4E79";
+    style="filled,rounded"; fillcolor="#EAF1F8"; color="#1F4E79"; penwidth=1.8;
+    e1 [label="run_pipeline.py\n--formula <X>\n--direction {0|1|2|3}", fillcolor="#DEEAF6"];
+    e2 [label="run_pipeline.py -i\ninteractive console", fillcolor="#DEEAF6"];
+    e3 [label="toolkit.py --dopant\n--ratio --vacancy --host", fillcolor="#DEEAF6"];
+    {rank=same; e1; e2; e3;}
+  }
+
+  subgraph cluster_comp {
+    label="STAGE 1  —  COMPOSITION DECODING  (composition.py)"; fontsize=14;
+    fontcolor="#1F4E79"; style="filled,rounded"; fillcolor="#F5F8FB"; color="#1F4E79"; penwidth=1.8;
+    c1 [label="parse_formula_to_counts()  —  stoichiometry tokenizer\n(nested groups, fractional subscripts)\n↓\nparse_composition()  →  ParsedComposition\nSn fraction · host anion · N dopants\ncation / anion site assignment"];
+    c3 [label="SAFEGUARD — host-anion substitution\ncapped at min(x, 0.03125) = 1/32 supercell;\npure compounds take the pure end-member row\ninstead of a linear extrapolation",
+        fillcolor="#FFF2CC", color="#BF8F00"];
+    c1 -> c3;
+  }
+
+
+  subgraph cluster_feat {
+    label="STAGE 2  —  DUAL-PATH FEATURISATION"; fontsize=14;
+    fontcolor="#1F4E79"; style="filled,rounded"; fillcolor="#F5F8FB"; color="#1F4E79"; penwidth=1.8;
+    f3 [label="to_base_row(p, T, direction) → BASE_ROW_COLUMNS\n↓\nfeature2.construct_feature()\n+ cut_feature(COLUMN, SUBSET)\n→ 62 physics-grounded descriptors:\nvalley degeneracy N_v · inertial mass m*_I\nDOS mass m*_d · band gap E_g · valley offsets\n\nREFERENCE DATA (read-only):\nResults_Summary_Final.xlsx — DFT multi-valley\nmasses and E_g for 84 elements\nmendeleev.csv — elemental descriptors"];
+    f4 [label="SAFEGUARD — effective-mass bounding\nm*_CBM ∈ [0.02, 50.0]   m*_VBM ∈ [0.02, 50.0]",
+        fillcolor="#FFF2CC", color="#BF8F00"];
+    f2 [label="to_tl_features(p, direction)\nANISOTROPY BLOCK:\ndirection_val, is_single_crystal,\nis_b_axis, is_c_axis, anisotropy_strength",
+        fillcolor="#E2EFDA", color="#375623"];
+    f3 -> f4;
+  }
+
+  subgraph cluster_base {
+    label="STAGE 3  —  FROZEN BASE ENSEMBLE  (BaseEnsemble)"; fontsize=14;
+    fontcolor="#1F4E79"; style="filled,rounded"; fillcolor="#EAF1F8"; color="#1F4E79"; penwidth=1.8;
+    b0 [label="15 frozen XGBoost boosters\n= 3 transport targets × 5 folds\nloaded from {measure}_{fold}_seed_0.json", fillcolor="#DEEAF6"];
+    b1 [label="σ_base [S/cm]   ·   S_base [µV/K]\nκ_base [W/m·K]  (clipped at κ_floor)"];
+    b4 [label="fold-to-fold spread → σ_sd\nensemble uncertainty channel", fillcolor="#FCE4D6", color="#C55A11"];
+    bp [label="BASE PHYSICS PRIOR\nPF = S²σ · 10⁻⁶\nZT_base = S²σT / κ · 10⁻¹⁰", fillcolor="#EDEDED", color="#595959"];
+    b0 -> b1; b0 -> b4; b1 -> bp;
+    {rank=same; b1; b4;}
+  }
+
+  cont [label="CONTINUED IN PART B  ▼\nbase prior + σ_sd + anisotropy block → Stage 4",
+        shape=box, style="filled", fillcolor="#1F4E79", fontcolor="#FFFFFF", color="#1F4E79", fontsize=13];
+
+  e2 -> c1 [lhead=cluster_comp, ltail=cluster_entry];
+  c3 -> f3 [lhead=cluster_feat];
+  c3 -> f2 [style=dashed, color="#375623"];
+  f4 -> b0 [label="  62-D feature vector  ", lhead=cluster_base];
+  bp -> cont; b4 -> cont [style=dashed, color="#C55A11"];
+  f2 -> cont [style=dashed, color="#375623"];
+}

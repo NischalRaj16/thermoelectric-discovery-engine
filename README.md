@@ -1,222 +1,335 @@
-# Thermoelectric Discovery Engine: Physics-Informed Multi-Valley ML, Transfer Learning & Materials Project API
+# Thermoelectric Discovery Engine
 
-An end-to-end, high-precision materials informatics framework designed to predict, optimize, and discover record-efficiency thermoelectric materials across **100 K to 1000 K**.
+**Physics-informed transfer learning for SnSe / SnS thermoelectric transport, 100–1000 K**
 
-By integrating **first-principles density functional theory (DFT) electronic structure parameters** with **5-fold ensemble machine learning**, **transfer learning domain adaptation**, and the **Materials Project API (MP_API)**, this engine accurately captures multi-valley band convergence, defect chemistry, and thermodynamic phase stability.
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Derivative work](https://img.shields.io/badge/derivative%20of-KRICT--DATA-orange.svg)](THIRD_PARTY_NOTICES.md)
+
+Predicts the thermoelectric figure of merit *ZT* and its underlying transport
+coefficients for doped and alloyed tin chalcogenides, by correcting a
+first-principles machine-learning prior with measured experimental data.
+
+> **Attribution first.** This repository is a **derivative work**. Its base
+> pipeline — the research notebooks, the multi-valley DFT descriptor tables and
+> the pre-trained transport models — was published by **KRICT-DATA** (Korea
+> Research Institute of Chemical Technology) and is preserved here as the
+> initial commit. What is original to this repository is the calibration layer
+> described below. Please read [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+> before reusing or redistributing any of it; the upstream portion carries no
+> explicit licence grant.
 
 ---
 
-## 🔬 Core Scientific Methodology
+## What this adds to the upstream work
+
+The upstream models predict transport for idealised polycrystalline material
+from DFT descriptors. They systematically miss real measurements, and on
+un-doped stoichiometric SnSe and SnS they originally diverged outright. This
+repository addresses that in five parts:
+
+1. **A multi-dopant composition parser** (`composition.py`) that resolves
+   arbitrary formulae into site-assigned dopants, and caps host-anion
+   substitution at the DFT supercell ratio (1/32) so a pure compound is no
+   longer reconstructed by extrapolating a substitution that is not there.
+2. **Physical bounding** of the effective-mass tensor to [0.02, 50.0] and of
+   thermal conductivity to a positive floor, so no unphysical intermediate
+   propagates into *ZT*.
+3. **Crystallographic direction as a first-class input** — five anisotropy
+   encodings plus an explicit `--direction` flag, separating single-crystal
+   *b*-axis transport from the polycrystalline average in the strongly
+   anisotropic Pnma/Cmcm lattice.
+4. **A transfer-learning residual layer** (`transfer_learning.py`): four
+   correction models that map the frozen prior onto measured transport, scored
+   out-of-fold with GroupKFold partitioned on formula.
+5. **A domain-validity guard** that flags extrapolation in temperature,
+   direction and ensemble spread, plus a self-consistency audit of the reported
+   *ZT* against `S²σT/κ`.
+
+---
+
+## How it works
 
 ```
-                                  [ CHEMICAL COMPOSITION ]
-                                              │
-                      ┌───────────────────────┴───────────────────────┐
-                      ▼                                               ▼
-         [ FIRST-PRINCIPLES DFT DESCRIPTORS ]           [ MATERIALS PROJECT API (MP_API) ]
-         • Multi-valley masses: m*(VBM1,2,3), m*(CBM1,2,3) • Energy Above Hull (ΔE_hull in eV/atom)
-         • Valley energy offsets & direct bandgaps     • Spacegroup symmetry & Crystal system
-         • Mendeleev elemental physical properties      • Thermodynamic synthesizability check
-                      │                                               │
-                      └───────────────────────┬───────────────────────┘
-                                              │
-                                              ▼
-                             [ 5-FOLD ENSEMBLE XGBOOST ENGINE ]
-                             • Electrical Conductivity: σ(T) [S/cm]
-                             • Seebeck Coefficient:     S(T) [µV/K]
-                             • Thermal Conductivity:    κ(T) [W/m·K]
-                                              │
-                                              ▼
-                           [ TRANSFER LEARNING DOMAIN ADAPTATION ]
-                           • Trained on experimental datasets (ESTM, UCSB, Zhao et al. Science)
-                           • Calibrates real-world crystal field & carrier activation
-                           • >94% MAE reduction over theoretical polycrystals
-                                              │
-                                              ▼
-                             [ PHYSICAL TRANSPORT FORMULATION ]
-                             • Power Factor: PF = S²·σ  [µW/(cm·K²)]
-                             • Figure of Merit: ZT = (S²·σ·T / κ) · 10⁻¹⁰
-                                              │
-                                              ▼
-                        [ 100 K – 1000 K TEMPERATURE SWEEP & LEADERBOARD ]
-                        • Identifies Champion Compositions & Optimal Temp (T_opt)
+formula + direction + temperature grid
+        │
+        ▼
+composition.py ──────── parse → ParsedComposition → substitution cap (1/32)
+        │
+        ▼
+feature2.construct_feature() ─── 62 descriptors: N_v, m*_d, m*_I, E_g, valley offsets
+        │                        + 5 anisotropy encodings     [mass bounding applied]
+        ▼
+15 frozen XGBoost boosters (3 transport targets × 5 folds)
+        │                        → σ_base, S_base, κ_base  and the fold-spread σ_sd
+        ▼
+BASE PHYSICS PRIOR               PF = S²σ      ZT_base = S²σT / κ
+        │
+        ▼
+4 residual correctors ─── log(σ_exp/σ_base) · S_exp − S_base
+        │                 log(κ_exp/κ_base) · log(ZT_exp/ZT_base)
+        ▼
+calibrated reconstruction → self-consistency audit → domain-validity guard
+        │
+        ▼
+outputdata_search/<formula>_prediction_profile.csv   +   peak ZT and T_opt
 ```
 
----
+A full module-level flowchart is in `docs_assets/` and in the technical report.
 
-## 🚀 Key Innovations
-
-### 1. Multi-Valley Electronic Structure Featurization
-Unlike standard black-box machine learning models that rely solely on elemental properties, this framework integrates **first-principles DFT multi-valley band descriptors** across 84 elements:
-- Valence band maximum energies ($E_{\text{VBM1,2,3}}$) and effective masses ($m^*_{\text{VBM1,2,3}}$)
-- Conduction band minimum energies ($E_{\text{CBM1,2,3}}$) and effective masses ($m^*_{\text{CBM1,2,3}}$)
-- Direct electronic bandgaps, deformation potentials, and deep-level defect states
-
-### 2. Independent Transport Property Modeling
-Rather than predicting $ZT$ directly via arbitrary regression, the engine models the three underlying transport mechanisms independently using a 5-fold ensemble of XGBoost models:
-- **Electrical Conductivity**: $\sigma(T)$ in $\text{S}/\text{cm}$
-- **Seebeck Coefficient**: $S(T)$ in $\mu\text{V}/\text{K}$
-- **Thermal Conductivity**: $\kappa(T)$ in $\text{W}/(\text{m}\cdot\text{K})$
-
-The thermoelectric Figure of Merit is then strictly calculated through fundamental physics:
-
-$$\text{Power Factor } (PF) = S^2 \sigma \times 10^{-6}\quad \left[\mu\text{W}/(\text{cm}\cdot\text{K}^2)\right]$$
-
-$$ZT = \frac{S^2 \sigma T}{\kappa} \times 10^{-10} = \frac{PF \times 10^{-4} \times T}{\kappa}$$
-
-### 3. Transfer Learning Domain Adaptation
-Idealized DFT models severely under-predict experimental breakthroughs in high-quality single crystals (e.g., Zhao et al. *Science* 2020). Our **Transfer Learning Engine** bridges this gap:
-- **Residual Domain Adaptation**: Calibrates theoretical polycrystal baselines using 870 experimental measurements from `ESTM`, `UCSB`, and single-crystal literature.
-- **Accuracy Improvement**:
-  - **Seebeck Error**: Drops from $272.3\ \mu\text{V}/\text{K}$ down to **$9.0\ \mu\text{V}/\text{K}$** (**$96.7\%$ improvement**)
-  - **Thermal Conductivity Error**: Drops from $1.66\ \text{W/m}\cdot\text{K}$ down to **$0.098\ \text{W/m}\cdot\text{K}$** (**$94.1\%$ improvement**)
-  - **ZT Error (MAE)**: Drops from $0.2396$ down to **$0.0157$** ($R^2 = 0.995$)
-
-### 4. Materials Project API (`MP_API`) Phase Stability Screening
-Integrated directly with the Materials Project database to evaluate thermodynamic synthesizability:
-- Checks if a composition is a stable ground state or metastable phase ($\Delta E_{\text{hull}}$ in $\text{eV}/\text{atom}$).
-- Identifies crystal spacegroups (`Pnma`, `Fm-3m`, etc.) and DFT bandgaps.
-- Implements intelligent local caching (`mp_cache.json`) for instant, offline-tolerant queries.
+The base layer is never fine-tuned on experiment. All empirical adaptation is
+isolated in the residual layer, which keeps the DFT prior inspectable and makes
+the size of the correction itself a diagnostic — every exported profile carries
+`Base_DFT_ZT` next to the calibrated value.
 
 ---
 
-## 📊 Benchmark Validations
+## Measured accuracy
 
-### A. Landmark Single-Crystal Benchmark: $\text{Sn}_{0.96}\text{Na}_{0.01}\text{Ag}_{0.03}\text{S}$ (*Science* 2020)
-| Temperature | Real Experiment | Base DFT Model | **Transfer-Learned Model** | Accuracy |
-| :---: | :---: | :---: | :---: | :---: |
-| **300 K** | $1.058$ | $0.168$ | **$1.058$** | **$99.98\%$** |
-| **373 K** | $1.354$ | $0.486$ | **$1.365$** | **$99.19\%$** |
-| **523 K** | $1.974$ | $0.762$ | **$1.945$** | **$98.53\%$** |
-| **573 K / 700 K** | $1.997$ | $0.955$ | **$1.985$** | **$99.39\%$** |
+Out-of-fold, grouped by formula so no composition appears in both sides of a
+fold. These figures are read directly from
+`models_transfer_learning/tl_metrics.json` and are regenerated by
+`--train-tl`; the report and the slide deck read the same file at build time.
 
-### B. Isostructural Chalcogenide Solid Solution: $\text{SnS}_{0.91}\text{Se}_{0.09}$
-| Temperature | Real Experiment | **Transfer-Learned Model** | Seebeck Exp vs Pred | Thermal Cond. Exp vs Pred |
-| :---: | :---: | :---: | :---: | :---: |
-| **300 K** | $0.686$ | **$0.687$** | $203.5$ vs **$208.6\ \mu\text{V}/\text{K}$** | $2.30$ vs **$2.35\ \text{W}/(\text{m}\cdot\text{K})$** |
-| **723 K** | $1.424$ | **$1.185$** | $375.4$ vs **$328.4\ \mu\text{V}/\text{K}$** | $0.87$ vs **$1.01\ \text{W}/(\text{m}\cdot\text{K})$** |
-| **873 K / 900 K** | $1.643$ | **$1.622$** | $379.3$ vs **$370.6\ \mu\text{V}/\text{K}$** | $0.63$ vs **$0.69\ \text{W}/(\text{m}\cdot\text{K})$** |
+| Channel | n | Groups | MAE base | MAE transfer | Improvement | R² base | R² transfer |
+|---|---|---|---|---|---|---|---|
+| Seebeck S [µV/K] | 907 | 150 | 277.7 | 38.65 | 86.1 % | −2.453 | **0.840** |
+| Thermal cond. κ [W/m·K] | 898 | 148 | 1.597 | 0.4401 | 72.4 % | −0.943 | **0.758** |
+| Electrical cond. σ [S/cm] | 907 | 150 | 1535 | 757.6 | 50.6 % | −0.070 | **0.269** |
+| Figure of merit ZT | 898 | 148 | 0.2324 | 0.1170 | 49.7 % | 0.162 | **0.733** |
+
+**Self-consistency:** median `ZT / ZT_physics` = 0.966; 78.6 % of points within
+a factor of 2, 89.5 % within a factor of 3.
+
+σ is the weakest channel and is reported as such. A variant that derived *ZT*
+from the corrected coefficients rather than modelling it directly was measured
+and rejected (MAE 0.377, strongly negative R²) because errors in a ratio of
+products compound instead of cancelling; that negative result is retained in
+`tl_metrics.json`.
+
+### Behaviour on pure compounds after calibration
+
+| Composition | Morphology | Peak ZT | T_opt |
+|---|---|---|---|
+| SnSe | single crystal, *b*-axis | 2.327 | 950 K |
+| SnSe | polycrystalline | 0.700 | 900 K |
+| SnS | single crystal, *b*-axis | 1.041 | 950 K |
+| SnS | polycrystalline | 0.094 | 1000 K |
+
+### Comparison against frontier experimental studies
+
+| Study | System | Experiment | Model | Deviation |
+|---|---|---|---|---|
+| Zhao et al., *Nature* 2014 | SnSe single crystal, *b*-axis | 2.30 ± 0.30 @ 923 K | 2.33 @ 950 K | +1.3 % |
+| Siddique et al., *Adv. Sci.* 2025 | Sn₀.₉₂Pb₀.₀₃Se single crystal | 2.45 ± 0.35 @ 873 K | 2.41 @ 875 K | −1.6 % |
+| Li et al., *J. Alloys Compd.* 2025 | SnSe₀.₇₅Te₀.₂₅ polycrystal | 1.25 @ 793 K | 1.28 @ 800 K | +2.4 % |
+| Fakhri et al., *Nat. Commun.* 2026 | Sn₀.₉₆Na₀.₀₁Ag₀.₀₃S polycrystal | 1.62 @ 873 K | 1.58 @ 875 K | −2.5 % |
 
 ---
 
-## 💻 Programmatic Toolkit Usage (No Browser Needed)
+## Installation
 
-The toolkit is completely self-contained in [toolkit.py](file:///C:/Users/kraj8/Downloads/SnSe_MLcopy/toolkit.py) and runs directly from the terminal or in Python scripts/Jupyter notebooks without opening any web browser.
-
-### 1. Predict Single Alloy Configuration via CLI
 ```bash
-# Predict with Pb 3% and Sn vacancy 0.5% on SnSe:
-python toolkit.py --dopant Pb --ratio 3.0 --vacancy 0.5
+git clone https://github.com/NischalRaj16/thermoelectric-discovery-engine.git
+cd thermoelectric-discovery-engine
 
-# Predict with Bi 2% on SnSe (generates 300 K – 820 K curves, CSV & high-res plot):
-python toolkit.py --dopant Bi --ratio 2.0 --vacancy 0.5
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+source .venv/bin/activate       # Linux / macOS
 
-# Predict on SnS host lattice:
-python toolkit.py --dopant Ag --ratio 3.0 --host SnS
+pip install -r requirements.txt
 ```
 
-### 2. Multi-Dopant Automated Screening Sweep
-Screen multiple dopants across ratios and output a ranked leaderboard:
+Python 3.10+. The frozen boosters are stored in XGBoost 3.4.1 JSON format, so
+`xgboost>=3.4.1` is required to load them.
+
+Run every command from the repository root — the featuriser resolves
+`mendeleev.csv` relative to the model directory, and running from a
+subdirectory is the most common first-run failure.
+
+### Materials Project API key (optional)
+
+Only the thermodynamic screening branch needs it. The key is never stored in
+tracked source: `mp_client.py` reads `MP_API_KEY` first, then falls back to a
+local `.mp_api_key` file beside the module (already gitignored).
+
 ```bash
-python toolkit.py --screen
+export MP_API_KEY="your_key_here"       # Linux / macOS
+setx MP_API_KEY "your_key_here"         # Windows, new shell required
 ```
 
-### 3. Python SDK / Programmatic Integration
-```python
-from toolkit import SnSeToolkit
+Without a key, pass `--no-mp`. Transport predictions are unaffected.
 
-toolkit = SnSeToolkit()
+### Experimental datasets (not included)
 
-# Predict across 300 K to 820 K
-df_results, summary = toolkit.predict(
-    dopant="Pb",
-    ratio=3.0,
-    vacancy=0.5,
-    host="SnSe",
-    save_plot=True,
-    export_csv=True
-)
+`uploaded_data/` is **not** redistributed here — it contains third-party and
+publisher-copyrighted material. You only need it to retrain the correction
+layer; the trained models ship in `models_transfer_learning/`, so prediction
+works without it.
 
-print(f"Peak ZT: {summary['max_zt']:.3f} at {summary['max_zt_temp']} K")
-print(df_results.head())
+To retrain, recreate this layout from the original sources (see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) §3):
+
+```
+uploaded_data/
+├── ESTM_Dataset/              # ESTM cleaned thermoelectric database
+├── ucsb_thermoelectrics.json  # UCSB / Gaultois curated dataset
+└── 33191598/                  # Science 2020 SnS:Na:Ag supplementary data
 ```
 
 ---
 
-## 🖥️ Unified Pipeline Console (`run_pipeline.py`)
+## Usage
 
-### 1. Interactive Console Mode
-Launch the menu-driven discovery interface:
+### Predict one composition
+
+```bash
+python run_pipeline.py --formula SnSe --direction 2
+python run_pipeline.py --formula Sn0.96Na0.01Ag0.03S
+python run_pipeline.py --formula SnS0.91Se0.09 --no-mp
+```
+
+Writes `outputdata_search/<formula>_prediction_profile.csv` and prints the peak
+*ZT* with its optimal temperature.
+
+### Interactive console
+
 ```bash
 python run_pipeline.py -i
 ```
-From the menu, you can:
-* Enter any chemical composition to sweep from 100 K to 1000 K.
-* Screen curated benchmark datasets (`ESTM`, `UCSB`, single-crystal $\text{SnS}$).
-* Query the Materials Project API for phase diagrams and thermodynamic stability.
-* Re-train / update the transfer learning model with new datasets.
 
-### 2. Direct Single-Composition Prediction
-Predict transport properties and $ZT$ across the full temperature range:
+### Screening and search
+
 ```bash
-python run_pipeline.py --formula Sn0.96Na0.01Ag0.03S
-python run_pipeline.py --formula SnSe0.25Te0.75
-python run_pipeline.py --formula SnS0.91Se0.09
+python run_pipeline.py --screen-datasets       # evaluate every benchmark dataset
+python run_pipeline.py --mp-search Sn-Se-Te    # chemical-system stability query
+python toolkit.py --dopant Pb --ratio 3.0 --vacancy 0.5 --host SnSe
+python toolkit.py --screen                     # ranked multi-dopant leaderboard
 ```
 
-### 3. Screen All Benchmark Datasets
-Run an end-to-end evaluation across all experimental datasets and export leaderboards:
-```bash
-python run_pipeline.py --screen-datasets
-```
+### Retrain the correction layer
 
-### 4. Search Materials Project Database Directly
-Query the Materials Project API for thermodynamic stability, spacegroups, and band gaps:
-```bash
-python run_pipeline.py --mp-search SnSe
-python run_pipeline.py --mp-search Sn-Se-Te
-```
-
-### 5. Re-Train Transfer Learning Models
-Calibrate the transfer learning models using newly added experimental data:
 ```bash
 python run_pipeline.py --train-tl
 ```
 
+Requires `uploaded_data/`. Rewrites the four correctors plus `tl_metrics.json`
+and `tl_domain.json`. A few minutes on a laptop CPU.
+
+### Python SDK
+
+```python
+from toolkit import SnSeToolkit
+
+tk = SnSeToolkit()
+df, summary = tk.predict(dopant="Pb", ratio=3.0, vacancy=0.5,
+                         host="SnSe", export_csv=True)
+print(summary["max_zt"], summary["max_zt_temp"])
+```
+
+### Command-line reference (`run_pipeline.py`)
+
+| Flag | Type / default | Effect |
+|---|---|---|
+| `--formula` | string | Target composition |
+| `--direction` | int / 0 | 0 polycrystal, 1 *a*-axis, 2 *b*-axis, 3 *c*-axis |
+| `--start-temp` | int / 100 | First temperature of the sweep (K) |
+| `--end-temp` | int / 1000 | Last temperature of the sweep (K) |
+| `--step-temp` | int / 50 | Temperature increment (K) |
+| `--no-tl` | flag | Report the raw frozen prior; diagnostic use only |
+| `--no-mp` | flag | Skip Materials Project queries |
+| `-i`, `--interactive` | flag | Menu-driven console |
+| `--screen-datasets` | flag | Evaluate all benchmark datasets |
+| `--train-tl` | flag | Rebuild the residual correctors |
+| `--mp-search` | string | Query by formula or chemical system |
+
+### Reading the output
+
+| Column | Meaning |
+|---|---|
+| `Temperature (K)` | Sweep grid point |
+| `Conductivity (S/cm)` | Calibrated σ |
+| `Seebeck (µV/K)` | Calibrated S |
+| `Thermal_Cond (W/m·K)` | Calibrated κ |
+| `Power_Factor (µW/cm·K²)` | PF = S²σ |
+| `ZT` | Reported figure of merit, from the dedicated corrector |
+| `ZT_uncertainty` | Ensemble spread propagated from the frozen base folds |
+| `ZT_from_S2sigmaT_over_kappa` | *ZT* recomputed from the corrected coefficients |
+| `consistency_ratio` | Reported ÷ physics *ZT*; near 1.0 means internal agreement |
+| `Base_DFT_ZT` | Uncorrected prior, so the size of the correction stays visible |
+
 ---
 
-## 📁 Repository Structure
+## Repository layout
 
-```text
-├── run_pipeline.py                 # Main unified entry point & interactive CLI
-├── transfer_learning.py            # Transfer learning & domain adaptation engine
-├── mp_client.py                    # Materials Project API client with local caching
-├── evaluate_uploaded_datasets.py   # Benchmark evaluation & dataset screening pipeline
-├── run_snse_ml.py                  # Core screening & 5-fold ensemble XGBoost pipeline
-├── models_transfer_learning/       # Persisted transfer-learned XGBoost models
-│   ├── tl_seebeck_residual.joblib
-│   ├── tl_kappa_residual.joblib
-│   └── tl_zt_residual.joblib
-├── 1_predicting_new_compositions/  # First-principles DFT database & XGBoost models
-│   ├── Results_Summary_Final.xlsx  # Multi-valley effective masses & bandgaps for 84 elements
-│   ├── mendeleev.csv               # Mendeleev elemental physical descriptors
-│   └── *.json / *.joblib           # Pre-trained 5-fold ensemble XGBoost models
-├── uploaded_data/                  # Curated benchmark experimental datasets
-│   ├── 33191598/                   # Landmark Science SnS:Na:Ag experimental dataset
-│   ├── ESTM_Dataset/               # ESTM cleaned thermoelectric database
-│   └── ucsb_thermoelectrics.json   # Curated UCSB Gaultois experimental database
-└── outputdata_search/              # Output predictions, sweeps & leaderboards
-    ├── uploaded_datasets_ranked_champions_leaderboard.csv
-    ├── uploaded_datasets_temperature_sweeps_100K_to_1000K.csv
-    └── uploaded_datasets_predictions_and_experimental_comparison.csv
+```
+├── run_pipeline.py                 # unified CLI and interactive console
+├── composition.py                  # multi-dopant parser + substitution safeguard
+├── transfer_learning.py            # base ensemble + four residual correctors
+├── toolkit.py                      # Python SDK and screening sweep
+├── mp_client.py                    # Materials Project client with local cache
+├── evaluate_uploaded_datasets.py   # benchmark evaluation
+├── screen_sns_advanced.py          # high-throughput SnS screening
+├── build_docx_report.py            # technical report generator
+├── make_presentation.py            # slide-deck generator
+├── models_transfer_learning/       # correctors + tl_metrics.json + tl_domain.json
+├── 1_predicting_new_compositions/  # UPSTREAM: DFT tables, featuriser, frozen models
+├── docs_assets/                    # architecture flowcharts (PNG + Graphviz source)
+├── outputdata_search/              # generated predictions, leaderboards, plots
+└── uploaded_data/                  # experimental corpora (not redistributed)
 ```
 
 ---
 
-## 🛠️ Requirements & Dependencies
+## Known limitations
 
-```bash
-pip install numpy pandas scikit-learn xgboost pymatgen mp-api joblib bokeh
-```
-* Python 3.10+ (tested on Python 3.12 64-bit)
-* Materials Project API key (configured in `mp_client.py` or via `MP_API_KEY` environment variable)
+Worth stating plainly, because they bound what the numbers mean:
+
+- **Single-crystal directions are thinly represented** in the training corpus.
+  Predictions along an unseen direction are still produced but carry an
+  explicit extrapolation flag; treat them as qualitative.
+- **σ is the weakest channel** (R² ≈ 0.27 out-of-fold). ZT and Seebeck are
+  considerably better constrained.
+- **Screening champions are candidates, not measurements.** The top entries of
+  the leaderboard — e.g. Na₀.₀₁(Sn₀.₉₅₀Te₀.₀₃₀)₀.₉₉S at ZT ≈ 2.09, 800 K — are
+  extrapolations into doping regimes with no experimental anchor, and the
+  leaderboard itself records that they are not found in the Materials Project.
+  They are hypotheses to test by synthesis.
+- The base DFT descriptors cover 84 elements; compositions outside that set are
+  not supported.
+
+---
+
+## Citing this work
+
+If this software or its calibrated models contribute to your research, please
+cite it. GitHub renders [`CITATION.cff`](CITATION.cff) into a ready-made
+citation via the *Cite this repository* button.
+
+Please **also** cite the upstream work it derives from:
+
+> Lee, Y.-L.; Lee, H.; Kim, T.; Byun, S.; Lee, Y. K.; Jang, S.; Chung, I.;
+> Chang, H.; Im, J. *Data-Driven Enhancement of ZT in SnSe-Based Thermoelectric
+> Systems.* J. Am. Chem. Soc. **2022**, 144 (30), 13748–13763.
+
+---
+
+## Licence
+
+The calibration layer written for this project is released under the
+[Apache License 2.0](LICENSE). The licence requires that you keep the
+copyright notice and state any changes you make.
+
+It covers **only** the files listed in [NOTICE](NOTICE). The upstream KRICT
+pipeline, the vendored BSD-3-licensed `elements.py`, and every experimental
+dataset carry separate terms — see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+---
+
+## Author
+
+**Nischal Sadashivaiah** — MSc candidate, College of Intelligent Computing,
+Chang Gung University, Taoyuan, Taiwan.
+
+Issues and corrections are welcome, including corrections to attribution.

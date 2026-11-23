@@ -1,0 +1,57 @@
+digraph D1 {
+  graph [fontname="Helvetica", bgcolor="#0F172A", rankdir=LR, splines=spline,
+         nodesep=0.20, ranksep=0.42, compound=true, pad=0.10];
+  node  [fontname="Helvetica", shape=box, style="filled,rounded", penwidth=1.6,
+         fontsize=13, margin="0.13,0.08", color="#334155", fillcolor="#1E293B",
+         fontcolor="#F8FAFC"];
+  edge  [fontname="Helvetica", fontsize=11, color="#64748B", arrowsize=0.8,
+         penwidth=1.6, fontcolor="#38BDF8"];
+
+  subgraph cluster_0 {
+    label="STAGE 0 · ENTRY"; fontsize=13; fontcolor="#F59E0B"; style="rounded";
+    color="#334155"; penwidth=1.6;
+    e1 [label="run_pipeline.py\n--formula --direction"];
+    e2 [label="run_pipeline.py -i\ninteractive console"];
+    e3 [label="toolkit.py\nPython SDK"];
+  }
+  subgraph cluster_1 {
+    label="STAGE 1 · COMPOSITION DECODING"; fontsize=13; fontcolor="#F59E0B";
+    style="rounded"; color="#334155"; penwidth=1.6;
+    c1 [label="parse_composition()\n→ ParsedComposition\nSn · host anion · N dopants\ncation / anion sites"];
+    c2 [label="SAFEGUARD\nhost-anion substitution\ncapped at min(x, 0.03125)",
+        fillcolor="#422006", color="#F59E0B", fontcolor="#FCD34D"];
+    {rank=same; c1; c2;}
+    c1 -> c2 [constraint=false];
+  }
+  subgraph cluster_2 {
+    label="STAGE 2 · FEATURISATION"; fontsize=13; fontcolor="#F59E0B";
+    style="rounded"; color="#334155"; penwidth=1.6;
+    f1 [label="feature2.construct_feature()\n→ 62 DFT descriptors\nN_v · m*_d · m*_I · E_g"];
+    f2 [label="ANISOTROPY BLOCK\ndirection_val · is_b_axis\nis_c_axis · is_single_crystal",
+        fillcolor="#052e16", color="#10B981", fontcolor="#6EE7B7"];
+    f3 [label="SAFEGUARD\nm* bounded to [0.02, 50.0]",
+        fillcolor="#422006", color="#F59E0B", fontcolor="#FCD34D"];
+    {rank=same; f1; f2; f3;}
+  }
+  subgraph cluster_3 {
+    label="STAGE 3 · FROZEN BASE ENSEMBLE"; fontsize=13; fontcolor="#F59E0B";
+    style="rounded"; color="#334155"; penwidth=1.6;
+    b1 [label="15 XGBoost boosters\n3 targets × 5 folds"];
+    b2 [label="σ_base · S_base · κ_base"];
+    b3 [label="fold spread → σ_sd\nuncertainty channel",
+        fillcolor="#431407", color="#F97316", fontcolor="#FDBA74"];
+    b4 [label="BASE PHYSICS PRIOR\nPF = S²σ\nZT_base = S²σT / κ",
+        fillcolor="#1E3A5F", color="#38BDF8", fontcolor="#BAE6FD"];
+    {rank=same; b1; b2; b3; b4;}
+
+  }
+  out [label="▶  TO STAGE 4\nTransfer-learning\nresidual correction",
+       fillcolor="#38BDF8", color="#38BDF8", fontcolor="#0F172A", penwidth=2.0];
+
+  e2 -> c1 [lhead=cluster_1, ltail=cluster_0];
+  c2 -> f1 [lhead=cluster_2];
+  c2 -> f2 [style=dashed, color="#10B981"];
+  f3 -> b1 [label="62-D", lhead=cluster_3];
+  b4 -> out; b3 -> out [style=dashed, color="#F97316"];
+  f2 -> out [style=dashed, color="#10B981"];
+}

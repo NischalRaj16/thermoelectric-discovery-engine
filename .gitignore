@@ -1,9 +1,32 @@
 # Materials Project credential - never commit
 .mp_api_key
 
+# Experimental corpora are third-party / publisher-copyrighted and are NOT
+# redistributed with this repository. See THIRD_PARTY_NOTICES.md section 3 for
+# where to obtain each dataset. Only needed to retrain the correction layer;
+# the trained models in models_transfer_learning/ are committed.
+uploaded_data/
+
 # scratch written by cut_feature() in older versions
 test_features_nofeatures.csv
 
+# local backups
+*.bak
+*.orig
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
 .ipynb_checkpoints/
+
+# virtual environments
+.venv/
+venv/
+env/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

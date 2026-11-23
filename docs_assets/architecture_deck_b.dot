@@ -1,0 +1,61 @@
+digraph D2 {
+  graph [fontname="Helvetica", bgcolor="#0F172A", rankdir=LR, splines=spline,
+         nodesep=0.20, ranksep=0.45, compound=true, pad=0.10];
+  node  [fontname="Helvetica", shape=box, style="filled,rounded", penwidth=1.6,
+         fontsize=13, margin="0.13,0.08", color="#334155", fillcolor="#1E293B",
+         fontcolor="#F8FAFC"];
+  edge  [fontname="Helvetica", fontsize=11, color="#64748B", arrowsize=0.8,
+         penwidth=1.6, fontcolor="#38BDF8"];
+
+  inp [label="◀  FROM STAGE 3\nbase prior · σ_sd\n62-D features\nanisotropy block",
+       fillcolor="#38BDF8", color="#38BDF8", fontcolor="#0F172A", penwidth=2.0];
+
+  subgraph cluster_tr {
+    label="OFFLINE CALIBRATION  ·  --train-tl only"; fontsize=12.5; fontcolor="#FB923C";
+    style="rounded"; color="#7C2D12"; penwidth=1.6;
+    d1 [label="uploaded_data/\nESTM · UCSB · Science SnS:Na:Ag\nZhao SnSe b-axis",
+        fillcolor="#431407", color="#FB923C", fontcolor="#FED7AA"];
+    d2 [label="907 points · 150 formula groups\nGroupKFold, no leakage\n→ tl_metrics.json",
+        fillcolor="#431407", color="#FB923C", fontcolor="#FED7AA"];
+    {rank=same; d1; d2;}
+  }
+
+  subgraph cluster_tl {
+    label="STAGE 4 · RESIDUAL CORRECTION"; fontsize=13; fontcolor="#F59E0B";
+    style="rounded"; color="#334155"; penwidth=1.6;
+    t0 [label="_stack_tl(62-D ⊕ base ⊕ anisotropy)",
+        fillcolor="#052e16", color="#10B981", fontcolor="#6EE7B7"];
+    t1 [label="tl_sigma   log(σ_exp/σ_base)"];
+    t2 [label="tl_seebeck   S_exp − S_base"];
+    t3 [label="tl_kappa   log(κ_exp/κ_base)"];
+    t4 [label="tl_zt   log(ZT_exp/ZT_base)"];
+    {rank=same; t0; t1; t2; t3; t4;}
+  }
+
+  subgraph cluster_fin {
+    label="STAGE 5-6 · RECONSTRUCTION & GUARD"; fontsize=13; fontcolor="#F59E0B";
+    style="rounded"; color="#334155"; penwidth=1.6;
+    r1 [label="CALIBRATED RECONSTRUCTION\nσ·e^δ   S+δ   κ·e^δ   ZT·e^δ",
+        fillcolor="#1E3A5F", color="#38BDF8", fontcolor="#BAE6FD"];
+    r2 [label="self-consistency audit\nZT  vs  S²σT / κ"];
+    r3 [label="DOMAIN-VALIDITY GUARD\nT outside support · unseen\ndirection · high ZT spread",
+        fillcolor="#431407", color="#F97316", fontcolor="#FDBA74"];
+    {rank=same; r1; r2; r3;}
+  }
+
+  subgraph cluster_out {
+    label="STAGE 7 · DELIVERABLES"; fontsize=13; fontcolor="#F59E0B";
+    style="rounded"; color="#334155"; penwidth=1.6;
+    o1 [label="prediction_profile.csv\n100–1000 K · σ S κ PF ZT ± sd"];
+    o2 [label="champion peak ZT and T_opt"];
+    o3 [label="ranked leaderboards\n4-panel transport plots"];
+    o4 [label="MP_API stability tag\nΔE_hull · spacegroup",
+        fillcolor="#2E1065", color="#A78BFA", fontcolor="#DDD6FE"];
+    {rank=same; o1; o2; o3; o4;}
+  }
+
+  inp -> t0 [lhead=cluster_tl];
+  d2 -> t0 [color="#FB923C", style=bold, label="load_transfer_models()", lhead=cluster_tl, ltail=cluster_tr];
+  t2 -> r1 [lhead=cluster_fin, ltail=cluster_tl];
+  r3 -> o1 [lhead=cluster_out, ltail=cluster_fin];
+}

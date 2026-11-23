@@ -1,0 +1,63 @@
+digraph PARTB {
+  graph [fontname="Helvetica", bgcolor="white", rankdir=TB, splines=spline,
+         nodesep=0.22, ranksep=0.34, compound=true, pad=0.12];
+  node  [fontname="Helvetica", shape=box, style="filled,rounded", penwidth=1.4,
+         fontsize=13, margin="0.13,0.075", color="#1F4E79", fillcolor="#FFFFFF", fontcolor="#1A1A1A"];
+  edge  [fontname="Helvetica", fontsize=11, color="#44546A", arrowsize=0.8,
+         penwidth=1.5, fontcolor="#1F4E79"];
+
+  from_a [label="◀  CONTINUED FROM PART A\nbase prior (σ, S, κ, PF, ZT_base) + σ_sd\n+ 62-D feature vector + anisotropy block",
+          shape=box, style="filled", fillcolor="#1F4E79", fontcolor="#FFFFFF", color="#1F4E79"];
+
+  subgraph cluster_train {
+    label="OFFLINE CALIBRATION LOOP  —  runs only on  --train-tl"; fontsize=13;
+    fontcolor="#833C0C"; style="filled,rounded"; fillcolor="#FDF2E9"; color="#833C0C"; penwidth=1.6;
+    d1 [label="uploaded_data/   —   curated experimental corpus\nESTM · UCSB (Gaultois) · SnS:Na:Ag (Science)\nZhao et al. SnSe single-crystal b-axis\n↓\nprepare_experimental_dataset()\n907 measurement points across 150 formula groups\nbase rows + multi-dopant encoding + direction label",
+        fillcolor="#FBE4D5", color="#833C0C", shape=cylinder];
+    d3 [label="GroupKFold on formula  (no composition leakage)\nout-of-fold scoring of every residual model\n→ tl_metrics.json  (MAE / R² vs. the frozen base)",
+        fillcolor="#FBE4D5", color="#833C0C"];
+    d4 [label="persist to  models_transfer_learning/\ntl_sigma · tl_seebeck · tl_kappa · tl_zt  (.joblib)\n+ tl_domain.json  (training-support envelope)",
+        color="#833C0C", shape=cylinder];
+    d1 -> d3 -> d4;
+  }
+
+  subgraph cluster_tl {
+    label="STAGE 4  —  TRANSFER-LEARNING RESIDUAL CORRECTION  (transfer_learning.py)";
+    fontsize=13.5; fontcolor="#375623"; style="filled,rounded"; fillcolor="#F1F7EC";
+    color="#375623"; penwidth=1.8;
+    t0 [label="_stack_tl(  62 DFT features  ⊕  base-model predictions\n⊕  anisotropy block  )  →  residual input matrix",
+        fillcolor="#E2EFDA", color="#375623"];
+    t1 [label="tl_sigma_residual\nlog(σ_exp / σ_base)\nmultiplicative", color="#375623"];
+    t2 [label="tl_seebeck_residual\nS_exp − S_base\nadditive", color="#375623"];
+    t3 [label="tl_kappa_residual\nlog(κ_exp / κ_base)\nmultiplicative", color="#375623"];
+    t4 [label="tl_zt_residual\nlog(ZT_exp / ZT_base)\nthe reported ZT", color="#375623"];
+    t0 -> t1; t0 -> t2; t0 -> t3; t0 -> t4;
+    {rank=same; t1; t2; t3; t4;}
+  }
+
+  recon [label="STAGE 5  —  CALIBRATED RECONSTRUCTION\nσ = σ_base · e^δ        S = S_base + δ\nκ = κ_base · e^δ        ZT = ZT_base · e^δ\nself-consistency audit:  reported ZT  vs  ZT_physics = S²σT / κ",
+         fillcolor="#DEEAF6", color="#1F4E79", penwidth=1.8];
+
+  guard [label="STAGE 6  —  DOMAIN-VALIDITY GUARD\n(_domain_flags · tl_domain.json)\nflags raised when:  T falls outside the experimental support\nwindow · the crystallographic direction was never seen in\ntransfer training · the relative ZT spread is large",
+         fillcolor="#FCE4D6", color="#C55A11", penwidth=1.8];
+
+  mp [label="PARALLEL BRANCH\nmp_client.py →\nMaterials Project API\nget_mp_stability()\nsearch_materials()\n\nΔE_hull [eV/atom]\nspacegroup\nDFT band gap\nstability verdict\n\ncached in\nmp_cache.json",
+      fillcolor="#EADCF5", color="#7030A0", penwidth=1.6];
+
+  subgraph cluster_out {
+    label="STAGE 7  —  DELIVERABLES  (outputdata_search/)"; fontsize=13.5;
+    fontcolor="#1F4E79"; style="filled,rounded"; fillcolor="#EAF1F8"; color="#1F4E79"; penwidth=1.8;
+    o1 [label="<formula>_prediction_profile.csv\n100–1000 K sweep, step 50 K\nσ · S · κ · PF · ZT ± ZT_sd\n+ consistency ratio + Base_DFT_ZT", fillcolor="#DEEAF6"];
+    o2 [label="Champion extraction\npeak ZT and the optimal\noperating temperature T_opt\nprinted to console", fillcolor="#DEEAF6"];
+    o3 [label="Ranked leaderboards and\n4-panel transport plots\nfor screening and\nbenchmark runs", fillcolor="#DEEAF6"];
+    {rank=same; o1; o2; o3;}
+  }
+
+  from_a -> d1 [style=invis, lhead=cluster_train];
+  from_a -> t0 [lhead=cluster_tl, penwidth=2.0];
+  d4 -> t0 [color="#833C0C", penwidth=2.0, style=bold, label="  load_transfer_models()  ", lhead=cluster_tl];
+  t2 -> recon [ltail=cluster_tl];
+  recon -> guard;
+  guard -> o2 [lhead=cluster_out];
+  mp -> o1 [style=dashed, color="#7030A0", label="  stability tag  "];
+}
