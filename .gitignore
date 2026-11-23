@@ -1,0 +1,9 @@
+# Materials Project credential - never commit
+.mp_api_key
+
+# scratch written by cut_feature() in older versions
+test_features_nofeatures.csv
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

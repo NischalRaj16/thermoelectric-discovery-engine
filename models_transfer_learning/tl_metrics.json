@@ -1,0 +1,50 @@
+{
+  "sigma": {
+    "n": 907,
+    "groups": 150,
+    "mae_base": 1534.5690386727392,
+    "mae_tl_oof": 757.6070143628981,
+    "improvement_pct": 50.63063340453171,
+    "r2_base": -0.06984319576861298,
+    "r2_tl_oof": 0.26904503367925603
+  },
+  "seebeck": {
+    "n": 907,
+    "groups": 150,
+    "mae_base": 277.68571916573893,
+    "mae_tl_oof": 38.650413692337146,
+    "improvement_pct": 86.0812382399585,
+    "r2_base": -2.4533494404345775,
+    "r2_tl_oof": 0.8396735600408433
+  },
+  "kappa": {
+    "n": 898,
+    "groups": 148,
+    "mae_base": 1.5966174999222646,
+    "mae_tl_oof": 0.44005172862993513,
+    "improvement_pct": 72.4385002261744,
+    "r2_base": -0.9432211194902123,
+    "r2_tl_oof": 0.7580365840871999
+  },
+  "zt": {
+    "n": 898,
+    "groups": 148,
+    "mae_base": 0.23241887530664232,
+    "mae_tl_oof": 0.11697632869131415,
+    "improvement_pct": 49.67003926123419,
+    "r2_base": 0.16158984036171564,
+    "r2_tl_oof": 0.7328882190639925
+  },
+  "self_consistency": {
+    "n": 898,
+    "median_ZT_over_ZTphysics": 0.9660717161071257,
+    "frac_within_factor_2": 0.7861915367483296,
+    "frac_within_factor_3": 0.8953229398663697,
+    "note": "ZT is reported from its own out-of-fold-validated model; ZT_physics is recomputed from the corrected coefficients. previous pipeline median was 2.26"
+  },
+  "ZT_derived_from_physics_REJECTED": {
+    "mae_tl_oof": 0.37734304958497344,
+    "r2_tl_oof": -112.34176749162833,
+    "note": "measured and rejected as the reported value - errors in a ratio of products compound instead of cancelling"
+  }
+}

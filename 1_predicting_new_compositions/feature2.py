@@ -923,6 +923,17 @@ def construct_feature(X,calnum,features, training):
             density_n=n
             n+=1          
             
+    # Physical safeguards: ensure electronic effective masses are physically bounded
+    for vname, vmin, vmax in [
+        ('cbm_m', 0.02, 50.0), ('cbm_m2', 0.02, 50.0), ('cbm_m3', 0.02, 50.0),
+        ('cbm_m_sn', 0.02, 50.0), ('cbm_m_se', 0.02, 50.0),
+        ('vbm_m', -50.0, -0.02), ('vbm_m2', -50.0, -0.02), ('vbm_m3', -50.0, -0.02),
+        ('vbm_m_sn', -50.0, -0.02), ('vbm_m_se', -50.0, -0.02),
+    ]:
+        if vname in locals():
+            idx = locals()[vname]
+            X_train[:, idx] = np.clip(X_train[:, idx], vmin, vmax)
+
     ids=X.ID.values
     column=ids.reshape(-1,1)
     X_train = np.hstack((column,X_train))    

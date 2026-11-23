@@ -1,0 +1,74 @@
+{
+  "SnS": {
+    "formula": "SnS",
+    "matched_mp_formula": "SnS",
+    "material_id": "mp-2231",
+    "energy_above_hull": 0.0,
+    "is_stable": true,
+    "formation_energy_per_atom": -0.4721,
+    "band_gap": 0.905,
+    "symmetry": "Pnma (Orthorhombic)",
+    "density": 4.901,
+    "status": "Stable Ground State"
+  },
+  "SnSe": {
+    "formula": "SnSe",
+    "matched_mp_formula": "SnSe",
+    "material_id": "mp-691",
+    "energy_above_hull": 0.0,
+    "is_stable": true,
+    "formation_energy_per_atom": -0.4535,
+    "band_gap": 0.607,
+    "symmetry": "Pnma (Orthorhombic)",
+    "density": 5.803,
+    "status": "Stable Ground State"
+  },
+  "SnTe": {
+    "formula": "SnTe",
+    "matched_mp_formula": "SnTe",
+    "material_id": "mp-1883",
+    "energy_above_hull": 0.0,
+    "is_stable": true,
+    "formation_energy_per_atom": -0.265,
+    "band_gap": 0.042,
+    "symmetry": "Fm-3m (Cubic)",
+    "density": 6.325,
+    "status": "Stable Ground State"
+  },
+  "SnS0.91Se0.09": {
+    "formula": "SnS0.91Se0.09",
+    "matched_mp_formula": "SnSeS",
+    "material_id": "mp-1218912",
+    "energy_above_hull": 0.0146,
+    "is_stable": false,
+    "formation_energy_per_atom": -0.4343,
+    "band_gap": 0.913,
+    "symmetry": "P3m1 (Trigonal)",
+    "density": 4.895,
+    "status": "Metastable (Hull +0.015 eV/atom)"
+  },
+  "SnSSe": {
+    "formula": "SnS0.91Se0.09",
+    "matched_mp_formula": "SnSeS",
+    "material_id": "mp-1218912",
+    "energy_above_hull": 0.0146,
+    "is_stable": false,
+    "formation_energy_per_atom": -0.4343,
+    "band_gap": 0.913,
+    "symmetry": "P3m1 (Trigonal)",
+    "density": 4.895,
+    "status": "Metastable (Hull +0.015 eV/atom)"
+  },
+  "SnSeS": {
+    "formula": "SnSeS",
+    "matched_mp_formula": "SnSeS",
+    "material_id": "mp-1218912",
+    "energy_above_hull": 0.0146,
+    "is_stable": false,
+    "formation_energy_per_atom": -0.4343,
+    "band_gap": 0.913,
+    "symmetry": "P3m1 (Trigonal)",
+    "density": 4.895,
+    "status": "Metastable (Hull +0.015 eV/atom)"
+  }
+}

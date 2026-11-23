@@ -35,7 +35,7 @@ def tename(GBR,x_trial,indexing):
     if x_trial[0][1] != 1:
         ylegend += str(x_trial[0][1])
     
-    if not (indexing is ''):
+    if not (indexing != ''):
         ylegend += ','
         ylegend += str(indexing)
 
@@ -62,7 +62,7 @@ def tename1(GBR,x_trial,indexing):
     if x_trial[0][1] != 1:
         ylegend += str(x_trial[1])
     
-    if not (indexing is ''):
+    if not (indexing != ''):
         ylegend += ','
         ylegend += str(indexing)
 

@@ -417,7 +417,8 @@ def cut_feature(column2,feature, test_data_x):
     for j in temp2:
         testin  = numpy.delete(testin,j,axis=1) 
         
-    pandas.DataFrame(testin).to_csv('test_features_nofeatures.csv')
+    # (removed) this wrote test_features_nofeatures.csv on every call,
+    # including inside tight prediction loops. Kept out of the hot path.
     
     return testin
 
